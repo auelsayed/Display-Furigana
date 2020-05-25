@@ -1,12 +1,12 @@
-function createRubyTags(kanji, hiragana) {
+function createRubyTags(orig, hiragana) {
     ruby = document.createElement("ruby");
-    ruby.innerHTML = kanji;
+    ruby.innerHTML = orig;
     rp_open = document.createElement("rp")
     rp_open.innerHTML = "("
     rp_close = document.createElement("rp")
     rp_close.innerHTML = ")"
     rt = document.createElement("rt");
-    rt.setAttribute("style", "font-size : 60%; color : black;")
+    rt.setAttribute("style", "font-size : 50%; color : black;")
     rt.innerHTML = hiragana;
     ruby.append(rp_open);
     ruby.append(rt);
@@ -72,13 +72,13 @@ function arrayEqual(arrayA, arrayB) {
     var elements = document.getElementsByTagName('*');
 
     for (var i = 0; i < elements.length; i++) {
-        var element = elements[i];
+        const element = elements[i];
 
         for (var j = 0; j < element.childNodes.length; j++) {
-            var node = element.childNodes[j];
+            const node = element.childNodes[j];
 
             if (node.nodeType === 3) {
-                var t = node.parentElement.tagName;
+                const t = node.parentElement.tagName;
                 // Remove script, css, and already available furigana texts
                 if (t === 'SCRIPT' || t === 'STYLE' || t === 'RUBY' || t === 'RP' || t === 'RT' || t === "RB")
                     continue;
@@ -87,35 +87,47 @@ function arrayEqual(arrayA, arrayB) {
                     continue;
                 }
 
-                var text = node.nodeValue;
+                const text = node.nodeValue;
 
-                var words = await tokenize(text);
+                const words = await tokenize(text);
                 let temp_dom = document.createDocumentFragment()
 
                 for (let i = 0; i < words.length; i++) {
-                    const word = words[i];
-                    original_word = word["surface_form"]
+                    word = words[i];
+                    const original_word = word["surface_form"]
 
                     // Kanji parts of the page are split up to find the appropiate
                     // hiragana to place inside ruby tags
                     if (Kuroshiro.Util.isKanji(original_word) && word["word_type"] == "KNOWN") {
-                        original_split = original_word.split('')
+                        const original_split = original_word.split('')
 
                         // Convert the katakana to hiragana
-                        hiragana_form = Kuroshiro.Util.kanaToHiragna(word["reading"])
-                        hiragana_split = hiragana_form.split('')
+                        const hiragana_form = Kuroshiro.Util.kanaToHiragna(word["reading"])
+                        const hiragana_split = hiragana_form.split('')
 
                         // Get only the hiragana to the kanji to display as furigana
                         // i.e. avoid writing okurigana as furigana as well
-                        furigana = hiragana_split.filter(x => !original_split.includes(x)).join('');
-
+                        // Probably not needed as the okurigana case takes care of it, but
+                        // will keep just in case for any edge cases
+                        let furigana = hiragana_split.filter(x => !original_split.includes(x));
+                        const kanji = original_split.filter(x => !hiragana_split.includes(x));
                         // In the case that there is no okurigana
                         if (arrayEqual(original_split, furigana)) {
                             furigana = hiragana_form;
                         }
 
+                        let ruby;
+                        // If there is only one kanji, then display the furigana above it 
+                        // to make it not appear awkwardly stretched over the entire word
+                        if (kanji.length === 1) {
+                            ruby = createRubyTags(kanji[0], furigana.join(''))
+                            // Get the okurigana from hiragana (i.e. the trailing hiragana of a word)
+                            let okurigana = hiragana_split.filter(x => !furigana.includes(x)).join('');
+                            ruby.appendChild(document.createTextNode(okurigana))
+                        } else {
+                            ruby = createRubyTags(original_word, furigana.join(''))
+                        }
                         // Create the ruby tags with the appropaite furigana
-                        ruby = createRubyTags(original_word, furigana)
 
                         // Add to the temporary DOM to mass replace 
                         // original DOM when complete
